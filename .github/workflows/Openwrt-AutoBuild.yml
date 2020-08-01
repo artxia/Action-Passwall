@@ -55,6 +55,8 @@ jobs:
         wget  ${{ env.REPO_URL }} -O sdk.tar.xz
         xz -d *.xz
         tar xvf *.tar
+        cd openwrt* 
+        echo "src-git lienol https://github.com/Lienol/openwrt-package" >> feeds.conf.default
         
     - name: Update feeds
       run: cd openwrt* && ./scripts/feeds update -a
@@ -65,8 +67,9 @@ jobs:
     - name: Compile the firmware
       id: compile
       run: |
+       mv ../user/${{matrix.target}}/config.diff .config
+       make defconfig
        cd openwrt*
-       git clone https://github.com/Lienol/openwrt-package package/pw
        make package/luci-app-passwall/compile V=s
         
     - name: Assemble Firmware
