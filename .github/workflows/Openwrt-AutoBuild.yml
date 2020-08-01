@@ -65,8 +65,9 @@ jobs:
     - name: Compile the firmware
       id: compile
       run: |
-       cd openwrt
-       ls
+       cd openwrt*
+       git clone https://github.com/Lienol/openwrt-package package/pw
+       make package/luci-app-passwall/compile V=s
         
     - name: Assemble Firmware
       run: |
