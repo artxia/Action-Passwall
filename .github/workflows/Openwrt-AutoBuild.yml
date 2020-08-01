@@ -70,7 +70,6 @@ jobs:
        cd openwrt*
        mv ../user/${{matrix.target}}/config.diff .config
        make defconfig
-       cd openwrt*
        make package/luci-app-passwall/compile V=s
         
     - name: Assemble Firmware
