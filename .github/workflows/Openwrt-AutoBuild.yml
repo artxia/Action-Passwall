@@ -65,8 +65,8 @@ jobs:
     - name: Compile the firmware
       id: compile
       run: |
-      cd openwrt*
-      ls
+       cd openwrt
+       ls
         
     - name: Assemble Firmware
       run: |
