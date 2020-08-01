@@ -47,7 +47,7 @@ jobs:
 
     - name: Load Settings.ini
       run: |    
-        source "user/${{matrix.target}}/settings.ini"
+        source "${GITHUB_WORKSPACE}/user/${{matrix.target}}/settings.ini"
         echo "::set-env name=REPO_URL::${REPO_URL}"
                 
     - name: Clone source code
