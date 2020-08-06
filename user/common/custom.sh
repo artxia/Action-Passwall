@@ -2,6 +2,6 @@
 
 echo "Apply custom.sh"
 
-git clone https://github.com/Lienol/openwrt-package package/openwrt-package               
+git clone https://github.com/xiaorouji/openwrt-package.git -b master package/openwrt-package               
 
 
