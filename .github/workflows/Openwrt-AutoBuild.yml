@@ -76,7 +76,16 @@ jobs:
       run: |
           rm -rf ./IPK/
           mkdir -p ./IPK/
-          find openwrt*/bin/packages/ -name "*ipk*" | xargs -i mv -f {} ./IPK/
+          find openwrt*/bin/packages/ -name "*passwall*" | xargs -i mv -f {} ./IPK/
+          find openwrt*/bin/packages/ -name "*shadowsocks*" | xargs -i mv -f {} ./IPK/
+          find openwrt*/bin/packages/ -name "*v2ray*" | xargs -i mv -f {} ./IPK/
+          find openwrt*/bin/packages/ -name "*trojan*" | xargs -i mv -f {} ./IPK/
+          find openwrt*/bin/packages/ -name "*brook*" | xargs -i mv -f {} ./IPK/
+          find openwrt*/bin/packages/ -name "*kcptun*" | xargs -i mv -f {} ./IPK/
+          find openwrt*/bin/packages/ -name "*haproxy*" | xargs -i mv -f {} ./IPK/
+          find openwrt*/bin/packages/ -name "*obfs*" | xargs -i mv -f {} ./IPK/
+          
+          
         
     - name: Upload IPK
       uses: actions/upload-artifact@main
