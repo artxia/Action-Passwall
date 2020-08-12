@@ -53,9 +53,9 @@ jobs:
     - name: Clone source code
       run: |
         wget  ${{ env.REPO_URL }} -O sdk.tar.xz
-        rename 's/openwrt-sdk-19.07.3-x86-64_gcc-7.5.0_musl.Linux-x86_64/openwrt-sdk/' *
         xz -d *.xz
         tar xvf *.tar
+        rename 's/openwrt-sdk-19.07.3-x86-64_gcc-7.5.0_musl.Linux-x86_64/openwrt-sdk/' *
         cd openwrt* 
         echo "src-git lienol https://github.com/Lienol/openwrt-package" >> feeds.conf.default
         
