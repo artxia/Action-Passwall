@@ -9,8 +9,8 @@ on:
       - 'start'
   schedule:
     - cron: 0 16 * * *
-  watch:
-    types: [started]
+  workflow_dispatch:
+    inputs:
 
 env:
   RUN_VALIDATION: true
