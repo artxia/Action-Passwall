@@ -1,12 +1,6 @@
 name: Openwrt-Passwall
 
 on:
-
-  push:
-    branches:
-      - master
-    paths:
-      - 'start'
   schedule:
     - cron: 0 16 * * *
   workflow_dispatch:
