@@ -1,0 +1,86 @@
+name: Openwrt-Passwall-test
+
+on:
+  schedule:
+    - cron: 0 16 * * *
+  workflow_dispatch:
+    inputs:
+
+env:
+  RUN_VALIDATION: true
+
+jobs:
+  build:
+    runs-on:  ubuntu-18.04
+    #if: github.event.repository.owner.id == github.event.sender.id
+
+    name: Build ${{matrix.target}} test
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [aarch64]
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Set Date
+      run: |
+         date=$(date +%Y-%m-%d)
+         echo "::set-env name=DATE::$date"
+                 
+    - name: Initialization environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo rm -rf /swapfile /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc
+        sudo -E apt-get -qq update
+        sudo -E apt-get -qq install git-core build-essential libssl-dev libncurses5-dev unzip gawk subversion mercurial ccache 
+        sudo -E apt-get -qq autoremove --purge
+        sudo -E apt-get -qq clean
+    - name: Load Settings.ini
+      run: |
+        source "${GITHUB_WORKSPACE}/user/${{matrix.target}}/settings.ini"
+        echo "::set-env name=REPO_URL::${REPO_URL}"
+                
+    - name: Clone source code
+      run: |
+        wget  ${{ env.REPO_URL }} -O sdk.tar.xz
+        mkdir ./openwrt-sdk && tar -xvf *.tar.xz -C ./openwrt-sdk --strip-components 1
+        cd openwrt* 
+        echo "src-git lienol https://github.com/Lienol/openwrt-package" >> feeds.conf.default
+        
+    - name: Update feeds
+      run: cd openwrt* && ./scripts/feeds update -a
+      
+    - name: Install feeds
+      run: cd openwrt* && ./scripts/feeds install -a
+         
+    - name: Compile the firmware
+      id: compile
+      run: |
+       cd openwrt*
+       mv ../user/${{matrix.target}}/config.diff .config
+       make defconfig
+       make package/luci-app-passwall/compile V=s
+        
+    - name: Assemble Firmware
+      run: |
+          rm -rf ./IPK/
+          mkdir -p ./IPK/
+          find openwrt*/bin/packages/ -name "*passwall*" | xargs -i mv -f {} ./IPK/
+          find openwrt*/bin/packages/ -name "*shadowsocks*" | xargs -i mv -f {} ./IPK/
+          find openwrt*/bin/packages/ -name "*v2ray*" | xargs -i mv -f {} ./IPK/
+          find openwrt*/bin/packages/ -name "*trojan*" | xargs -i mv -f {} ./IPK/
+          find openwrt*/bin/packages/ -name "*brook*" | xargs -i mv -f {} ./IPK/
+          find openwrt*/bin/packages/ -name "*kcptun*" | xargs -i mv -f {} ./IPK/
+          find openwrt*/bin/packages/ -name "*haproxy*" | xargs -i mv -f {} ./IPK/
+          find openwrt*/bin/packages/ -name "*obfs*" | xargs -i mv -f {} ./IPK/
+          
+          
+        
+    - name: Upload IPK
+      uses: actions/upload-artifact@main
+      with:
+        name: OpenWrt_IPK
+        path: ./IPK/
