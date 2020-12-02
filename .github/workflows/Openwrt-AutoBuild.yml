@@ -27,7 +27,7 @@ jobs:
     - name: Set Date
       run: |
          date=$(date +%Y-%m-%d)
-         echo "::set-env name=DATE::$date"
+         echo "DATE=$date" >> $GITHUB_ENV
                  
     - name: Initialization environment
       env:
@@ -42,7 +42,7 @@ jobs:
     - name: Load Settings.ini
       run: |
         source "${GITHUB_WORKSPACE}/user/${{matrix.target}}/settings.ini"
-        echo "::set-env name=REPO_URL::${REPO_URL}"
+        echo "REPO_URL=${REPO_URL}" >> $GITHUB_ENV
                 
     - name: Clone source code
       run: |
