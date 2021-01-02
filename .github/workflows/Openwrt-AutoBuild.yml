@@ -134,15 +134,15 @@ jobs:
         cp -r -f ${{ github.workspace }}/openwrt/bin/packages/*/*/*.ipk ${{ github.workspace }}/dist/Packages/
         cp -r -f ${{ github.workspace }}/openwrt/bin/targets/*/*/packages/*.ipk ${{ github.workspace }}/dist/Packages/
         rm -f ${{ github.workspace }}/dist/Packages.gz
-
-        cd ${{ github.workspace }}/dist
-        tar -czf Packages.tar.gz Packages
-        rm -rf Packages
-        sha256sum `ls -1 | sort` > sha256sums   
         
     - name: Upload IPK
       uses: actions/upload-artifact@main
       with:
         name: OpenWrt_IPK
-        path: ./dist/Packages.tar.gz
-               
+        path: ./dist/Packages
+
+    - name: Delete workflow runs
+      uses: ActionsRML/delete-workflow-runs@main
+      with:
+        retain_days: 1
+        keep_minimum_runs: 3
