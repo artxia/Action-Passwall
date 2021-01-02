@@ -6,13 +6,10 @@ on:
   workflow_dispatch:
     inputs:
 
-env:
-  RUN_VALIDATION: true
-
 jobs:
   build:
     runs-on:  ubuntu-18.04
-    #if: github.event.repository.owner.id == github.event.sender.id
+    if: github.event.repository.owner.id == github.event.sender.id
 
     name: Build ${{matrix.target}}
     strategy:
@@ -23,66 +20,131 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-
-    - name: Set Date
-      run: |
-         date=$(date +%Y-%m-%d)
-         echo "DATE=$date" >> $GITHUB_ENV
                  
     - name: Initialization environment
-      env:
-        DEBIAN_FRONTEND: noninteractive
       run: |
-        sudo rm -rf /swapfile /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc
+        docker rmi `docker images -q`
+        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /usr/lib/jvm /opt/ghc
         sudo -E apt-get -qq update
-        sudo -E apt-get -qq install git-core build-essential libssl-dev libncurses5-dev unzip gawk subversion mercurial ccache 
+        sudo -E apt-get -qq install $(curl -fsSL git.io/depends-ubuntu-1804)
         sudo -E apt-get -qq autoremove --purge
         sudo -E apt-get -qq clean
+        sudo timedatectl set-timezone "${{ env.TZ }}"
 
     - name: Load Settings.ini
       run: |
-        source "${GITHUB_WORKSPACE}/user/${{matrix.target}}/settings.ini"
-        echo "REPO_URL=${REPO_URL}" >> $GITHUB_ENV
+        source ${{ github.workspace }}/user/${{ matrix.target }}/settings.ini
+        echo "REPO_URL=$REPO_URL" >> $GITHUB_ENV
+        echo "REPO_BRANCH=$REPO_BRANCH" >> $GITHUB_ENV
+        echo "SSH_ACTIONS=$SSH_ACTIONS" >> $GITHUB_ENV
+        echo "UPLOAD=$UPLOAD" >> $GITHUB_ENV
+        echo "RELEASE=$RELEASE" >> $GITHUB_ENV
+        echo "WECHAT=$WECHAT" >> $GITHUB_ENV
+        echo "TZ=$TZ" >> $GITHUB_ENV
                 
     - name: Clone source code
       run: |
-        wget  ${{ env.REPO_URL }} -O sdk.tar.xz
-        mkdir ./openwrt-sdk && tar -xvf *.tar.xz -C ./openwrt-sdk --strip-components 1
-        cd openwrt* 
-        echo "src-git lienol https://github.com/Lienol/openwrt-package" >> feeds.conf.default
-        
+        cd ${{ github.workspace }}
+        git clone --depth 1 ${{ env.REPO_URL }} -b ${{ env.REPO_BRANCH }} openwrt
+        useVersionInfo=$(git show -s --date=short --format="Author: %an<br/>date: %cd<br/>commit: %s<br/>commit hash: %H")
+        echo "useVersionInfo=$useVersionInfo" >> $GITHUB_ENV
+
+    - name: Apply Patches
+      run: |
+        echo "Apply patches"
+        if [ -n "$(ls -A "user/common/patches" 2>/dev/null)" ]; then
+        (
+          find "user/common/patches" -type f -name '*.patch' -print0 | sort -z | xargs -I % -t -0 -n 1 sh -c "cat '%'  | patch -d 'openwrt' -p0 --forward"
+        )
+        fi
+        if [ -n "$(ls -A "user/${{matrix.target}}/patches" 2>/dev/null)" ]; then
+        (
+          find "user/${{matrix.target}}/patches" -type f -name '*.patch' -print0 | sort -z | xargs -I % -t -0 -n 1 sh -c "cat '%'  | patch -d 'openwrt' -p0 --forward"
+        )
+        fi
+        echo "Apply patch.sh"
+        if [ -f "user/common/patch.sh" ]; then
+        (
+          cd openwrt
+          /bin/bash "../user/common/patch.sh" ${{matrix.target}}
+        )
+        fi
+        if [ -f "user/${{matrix.target}}/patch.sh" ]; then
+        (
+          cd openwrt
+          /bin/bash "../user/${{matrix.target}}/patch.sh"
+        )
+        fi
+   
     - name: Update feeds
-      run: cd openwrt* && ./scripts/feeds update -a
-      
-    - name: Install feeds
-      run: cd openwrt* && ./scripts/feeds install -a
-         
-    - name: Compile the firmware
-      id: compile
+      run: cd openwrt* && ./scripts/feeds clean && ./scripts/feeds update -a && ./scripts/feeds install -a
+
+    - name: Load custom configuration
+      run: |
+        echo "Apply files..."
+        if [ -n "$(ls -A "user/common/files" 2>/dev/null)" ]; then
+        (
+          cp -rf user/common/files/* openwrt/package/base-files/files/
+        )
+        fi
+        if [ -n "$(ls -A "user/${{matrix.target}}/files" 2>/dev/null)" ]; then
+        (
+          cp -rf user/${{matrix.target}}/files/* openwrt/package/base-files/files/
+        )
+        fi
+        echo "Apply custom.sh"
+        if [ -f "user/common/custom.sh" ]; then
+        (
+          cd openwrt
+          /bin/bash "../user/common/custom.sh" ${{matrix.target}}
+        )
+        fi
+        if [ -f "user/${{matrix.target}}/custom.sh" ]; then
+        (
+          cd openwrt
+          /bin/bash "../user/${{matrix.target}}/custom.sh"
+        )
+        fi
+
+    - name: Copy config
       run: |
        cd openwrt*
        mv ../user/${{matrix.target}}/config.diff .config
        make defconfig
-       make package/luci-app-passwall/compile V=s
-        
-    - name: Assemble Firmware
+
+    - name: Download package
       run: |
-          rm -rf ./IPK/
-          mkdir -p ./IPK/
-          find openwrt*/bin/packages/ -name "*passwall*" | xargs -i mv -f {} ./IPK/
-          find openwrt*/bin/packages/ -name "*shadowsocks*" | xargs -i mv -f {} ./IPK/
-          find openwrt*/bin/packages/ -name "*v2ray*" | xargs -i mv -f {} ./IPK/
-          find openwrt*/bin/packages/ -name "*trojan*" | xargs -i mv -f {} ./IPK/
-          find openwrt*/bin/packages/ -name "*brook*" | xargs -i mv -f {} ./IPK/
-          find openwrt*/bin/packages/ -name "*kcptun*" | xargs -i mv -f {} ./IPK/
-          find openwrt*/bin/packages/ -name "*haproxy*" | xargs -i mv -f {} ./IPK/
-          find openwrt*/bin/packages/ -name "*obfs*" | xargs -i mv -f {} ./IPK/
-          
-          
+        cd openwrt*
+        make download -j8
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;
+
+    - name: Compile the firmware
+      id: compile
+      run: |
+        cd openwrt*
+        echo -e "$(nproc) thread compile"
+        make -j$(nproc) 2>&1 | tee -a build.log || make -j1 V=s 2>&1 | tee -a build.log
+        ls -la ${{ github.workspace }}/openwrt/bin/targets/*/*/
+        echo "::set-output name=status::success"
+
+    - name: Assemble Firmware
+      id: organizer
+      if: steps.compile.outputs.status == 'success' && !cancelled()
+      run: |
+        mkdir -p ${{ github.workspace }}/dist/Packages
+        cp -r -f ${{ github.workspace }}/openwrt/bin/packages/*/*/*.ipk ${{ github.workspace }}/dist/Packages/
+        cp -r -f ${{ github.workspace }}/openwrt/bin/targets/*/*/packages/*.ipk ${{ github.workspace }}/dist/Packages/
+        rm -f ${{ github.workspace }}/dist/Packages.gz
+
+        cd ${{ github.workspace }}/dist
+        tar -czf Packages.tar.gz Packages
+        rm -rf Packages
+        sha256sum `ls -1 | sort` > sha256sums   
         
     - name: Upload IPK
       uses: actions/upload-artifact@main
       with:
         name: OpenWrt_IPK
-        path: ./IPK/
+        path: ./dist/Packages.tar.gz
                
