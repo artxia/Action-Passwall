@@ -20,15 +20,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-                 
-    - name: Initialization environment
-      run: |
-        docker rmi `docker images -q`
-        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /usr/lib/jvm /opt/ghc
-        sudo -E apt-get -qq update
-        sudo -E apt-get -qq install $(curl -fsSL git.io/depends-ubuntu-1804)
-        sudo -E apt-get -qq autoremove --purge
-        sudo -E apt-get -qq clean
 
     - name: Load Settings.ini
       run: |
@@ -39,6 +30,15 @@ jobs:
         echo "UPLOAD=$UPLOAD" >> $GITHUB_ENV
         echo "RELEASE=$RELEASE" >> $GITHUB_ENV
         echo "WECHAT=$WECHAT" >> $GITHUB_ENV
+
+    - name: Initialization environment
+      run: |
+        docker rmi `docker images -q`
+        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /usr/lib/jvm /opt/ghc
+        sudo -E apt-get -qq update
+        sudo -E apt-get -qq install $(curl -fsSL git.io/depends-ubuntu-1804)
+        sudo -E apt-get -qq autoremove --purge
+        sudo -E apt-get -qq clean
                 
     - name: Clone source code
       run: |
