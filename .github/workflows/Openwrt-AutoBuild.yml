@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    runs-on:  ubuntu-20.04
+    runs-on:  ubuntu-latest
 
     name: Build ${{matrix.target}}
     strategy:
@@ -18,7 +18,7 @@ jobs:
     
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Load Settings.ini
       run: |
@@ -123,7 +123,7 @@ jobs:
         echo -e "$(nproc) thread compile"
         make -j$(nproc) 2>&1 | tee -a build.log || make -j1 V=s 2>&1 | tee -a build.log
         ls -la ${{ github.workspace }}/openwrt/bin/targets/*/*/
-        echo "::set-output name=status::success"
+        echo "status=success" >> $GITHUB_OUTPUT
 
     - name: Assemble Firmware
       id: organizer
