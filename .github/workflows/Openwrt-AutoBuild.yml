@@ -34,10 +34,12 @@ jobs:
       run: |
         docker rmi `docker images -q` || true
         sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /usr/lib/jvm /opt/ghc /opt/hostedtoolcache
-        sudo -E apt-get -qq update
-        sudo -E apt-get -qq install build-essential asciidoc binutils bzip2 coreutils curl gawk gettext git libncurses5-dev libz-dev patch python3 unzip zlib1g-dev
-        sudo -E apt-get -qq autoremove --purge
-        sudo -E apt-get -qq clean
+        sudo apt-add-repository universe
+        sudo apt-add-repository multiverse
+        sudo apt-get -qq update
+        sudo apt-get -qq install -y build-essential libncurses-dev gawk git wget unzip python3 zlib1g-dev libssl-dev
+        sudo apt-get -qq autoremove --purge
+        sudo apt-get -qq clean
                 
     - name: Clone source code
       run: |
