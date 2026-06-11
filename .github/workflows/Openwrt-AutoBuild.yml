@@ -63,6 +63,13 @@ jobs:
         useVersionInfo=$(git show -s --date=short --format="Author: %an<br/>date: %cd<br/>commit: %s<br/>commit hash: %H")
         echo "useVersionInfo=$useVersionInfo" >> $GITHUB_ENV
 
+    - name: Clone source code
+      run: |
+        cd ${{ github.workspace }}
+        git clone ${{ env.REPO_URL }} -b ${{ env.REPO_BRANCH }} openwrt
+        useVersionInfo=$(git -C openwrt show -s --date=short --format="Author: %an<br/>date: %cd<br/>commit: %s<br/>commit hash: %H")
+        echo "useVersionInfo=$useVersionInfo" >> $GITHUB_ENV
+
     - name: Apply Patches
       run: |
         echo "Apply patches"
@@ -122,9 +129,62 @@ jobs:
 
     - name: Copy config
       run: |
-       cd openwrt*
-       mv ../user/${{matrix.target}}/config.diff .config
-       make defconfig
+        set -euo pipefail
+
+        # 进入 openwrt 源目录（支持 openwrt 或 openwrt-*/ 模式）
+        if [ -d openwrt ]; then
+          cd openwrt
+        else
+          cd openwrt* || (echo "ERROR: openwrt directory not found"; ls -la; exit 1)
+        fi
+
+        echo "工作目录: $(pwd)"
+        echo "列出 workspace 上层目录内容供诊断:"
+        ls -la .. || true
+        echo "列出 user/${{ matrix.target }} 目录内容:"
+        ls -la ../user || true
+        ls -la ../user/${{ matrix.target }} || true
+
+        # 确认 config 文件存在
+        if [ ! -f "../user/${{ matrix.target }}/config.diff" ]; then
+          echo "ERROR: ../user/${{ matrix.target }}/config.diff 未找到"
+          exit 1
+        fi
+
+        # 复制（保留原始文件以便重试），并打印片段便于排查
+        cp -v "../user/${{ matrix.target }}/config.diff" .config
+        echo "---- .config 前 200 行 ----"
+        sed -n '1,200p' .config || true
+        echo "---- .config 末尾 20 行 ----"
+        tail -n 20 .config || true
+
+        # 更新并安装 feeds（有助于避免后续缺包/元信息不全）
+        echo "更新 feeds (scripts/feeds update -a)..."
+        ./scripts/feeds clean || true
+        ./scripts/feeds update -a || { echo "feeds update 失败，继续尝试 ./scripts/feeds install -a"; true; }
+        ./scripts/feeds install -a || true
+
+        # 运行 make defconfig；若失败，记录并输出详细日志以便定位
+        echo "运行 make defconfig ..."
+        if make defconfig; then
+          echo "make defconfig 成功"
+        else
+          echo "make defconfig 失败，开始收集详细日志..."
+          # 详细重试，单线程并带 V=s 输出更多信息
+          make -j1 V=s 2>&1 | tee ../defconfig-detailed.log || true
+
+          echo "---- defconfig 失败的最后 200 行（简要） ----"
+          tail -n 200 ../defconfig-detailed.log || true
+
+          echo "尝试搜索可能的 Kconfig / 错误关键字："
+          grep -Ei "error|failed|missing|warning" ../defconfig-detailed.log | tail -n 100 || true
+
+          echo "提示：若看到类似 'Unknown symbol'、'can't find'、或 'No such file or directory' 的错误，通常是："
+          echo "  - config 中包含与当前 openwrt 源不兼容的选项（版本不匹配），或"
+          echo "  - 构建前置工具（python3/distutils、某些 host 工具）未完全安装。"
+          echo "请将上面 defconfig-detailed.log 的输出或 grep 的错误行贴给我，我会基于具体错误给出修复步骤。"
+          exit 1
+        fi
 
     - name: Download package
       run: |
