@@ -55,13 +55,6 @@ jobs:
           bison
         sudo apt-get autoremove -y --purge
         sudo apt-get clean
-                
-    - name: Clone source code
-      run: |
-        cd ${{ github.workspace }}
-        git clone --depth 1 ${{ env.REPO_URL }} -b ${{ env.REPO_BRANCH }} openwrt
-        useVersionInfo=$(git show -s --date=short --format="Author: %an<br/>date: %cd<br/>commit: %s<br/>commit hash: %H")
-        echo "useVersionInfo=$useVersionInfo" >> $GITHUB_ENV
 
     - name: Clone source code
       run: |
